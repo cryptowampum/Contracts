@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
+pragma solidity 0.8.17;
 
 // Use OpenZeppelin for core security features
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title SuperFantastic - P2P IRL NFT System
 /// @author @cryptowampum and Claude AI
 /// @notice A soulbound NFT system for creating personalized, peer-to-peer NFTs during in-real-life interactions
-/// @dev Inherits from ERC721, ERC721Enumerable, Ownable, and ReentrancyGuard for maximum security
-contract SuperFantastic is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
+/// @dev Inherits from ERC721, ERC721Enumerable, Ownable2Step, and ReentrancyGuard for maximum security
+contract SuperFantastic is ERC721, ERC721Enumerable, Ownable2Step, ReentrancyGuard {
     using Strings for uint256;
     using SafeERC20 for IERC20;
     
