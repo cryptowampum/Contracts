@@ -471,3 +471,17 @@ Ready to create your first IRL NFT? Here's the quickest path:
 **Made with ❤️ by the SuperFantastic team**
 
 *Transforming IRL interactions into permanent on-chain memories* 🦄✨
+
+Contract: 0xF993f484225900D2Be4F7253Cfd4Ab14fC9f4621
+
+https://ipfs.io/ipfs/bafkreiaklsgqpu3j2cgyd4ykzvpod42qfs7nycfuvhqudmwxsmsgia772q - base
+
+ipfs://bafkreiaklsgqpu3j2cgyd4ykzvpod42qfs7nycfuvhqudmwxsmsgia772q
+
+https://ipfs.io/ipfs/bafybeicltuul2wzk6ivhrvull3ptlpcc5rh6tvgkv6lkyuzs5l4olapjde - NSFW
+
+ipfs://bafybeicltuul2wzk6ivhrvull3ptlpcc5rh6tvgkv6lkyuzs5l4olapjde
+
+https://ipfs.io/ipfs/bafybeic4tl2qvg7okc4vbirts4qhjijernl6pemv7rhc6qydtbqkmwxk7y - we're cookin
+
+ipfs://bafybeic4tl2qvg7okc4vbirts4qhjijernl6pemv7rhc6qydtbqkmwxk7y

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperFantastic Contract Checker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 { color: #667eea; margin-bottom: 10px; }
+        .address { 
+            font-family: monospace; 
+            background: #f3f4f6; 
+            padding: 8px; 
+            border-radius: 6px;
+            font-size: 12px;
+            margin-bottom: 20px;
+            word-break: break-all;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .status-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .status-item:last-child { border-bottom: none; }
+        .label { font-weight: 600; color: #374151; }
+        .value { color: #6b7280; font-family: monospace; }
+        .success { color: #10b981; font-weight: 600; }
+        .error { color: #ef4444; font-weight: 600; }
+        .warning { color: #f59e0b; font-weight: 600; }
+        .log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        .log-line { margin-bottom: 5px; }
+        .log-error { color: #ef4444; }
+        .log-warn { color: #f59e0b; }
+        .input-group {
+            margin: 15px 0;
+        }
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #374151;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        .alert.info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .alert.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🦄 SuperFantastic Contract Checker</h1>
+        <div class="address">Contract: 0xF993f484225900D2Be4F7253Cfd4Ab14fC9f4621</div>
+        
+        <div class="alert info" id="readyAlert">
+            Loading ethers.js... Please wait.
+        </div>
+        
+        <div class="status-box">
+            <h3>Quick Actions</h3>
+            <button onclick="checkStatus()" id="checkBtn">🔍 Check Contract Status</button>
+            <button onclick="connectWallet()" id="connectBtn">🔌 Connect Wallet</button>
+            <button onclick="tryMint()" id="mintBtn">✨ Try Mint</button>
+            <button onclick="unpauseContract()" id="unpauseBtn">▶️ Unpause (Owner Only)</button>
+        </div>
+        
+        <div class="status-box" id="statusDisplay" style="display:none;">
+            <h3>📊 Contract Status</h3>
+            <div id="statusContent"></div>
+        </div>
+        
+        <div class="status-box">
+            <h3>🎨 Mint Parameters</h3>
+            <div class="input-group">
+                <label>Custom Image (IPFS URL)</label>
+                <input type="text" id="customImage" value="https://ipfs.io/ipfs/bafkreiaklsgqpu3j2cgyd4ykzvpod42qfs7nycfuvhqudmwxsmsgia772q">
+            </div>
+            <div class="input-group">
+                <label>Custom Text</label>
+                <input type="text" id="customText" value="Russell Testing">
+            </div>
+            <div class="input-group">
+                <label>Event Name</label>
+                <input type="text" id="eventName" value="Russell Hackathon">
+            </div>
+            <div class="input-group">
+                <label>Event Date (Unix timestamp)</label>
+                <input type="number" id="eventDate" value="1750000000">
+            </div>
+        </div>
+        
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const CONTRACT_ADDRESS = '0xF993f484225900D2Be4F7253Cfd4Ab14fC9f4621';
+        const POLYGON_CHAIN_ID = 137;
+        
+        let provider, signer, contract;
+        let ethersLoaded = false;
+        
+        const ABI = [
+            "function mint(string customImage, string customText, string eventName, uint256 eventDate) external payable",
+            "function paused() view returns (bool)",
+            "function mintPrice() view returns (uint256)",
+            "function totalSupply() view returns (uint256)",
+            "function isMintingActive() view returns (bool)",
+            "function MAX_SUPPLY() view returns (uint256)",
+            "function owner() view returns (address)",
+            "function unpause() external"
+        ];
+        
+        // Wait for ethers to load
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof ethers !== 'undefined') {
+                    ethersLoaded = true;
+                    document.getElementById('readyAlert').className = 'alert success';
+                    document.getElementById('readyAlert').textContent = '✅ Ready! Click "Check Contract Status" to begin (no wallet needed for this)';
+                    log('✅ Ethers.js loaded successfully');
+                    log('📍 You can check contract status without connecting wallet');
+                } else {
+                    document.getElementById('readyAlert').className = 'alert error';
+                    document.getElementById('readyAlert').textContent = '❌ Failed to load ethers.js. Please refresh the page.';
+                }
+            }, 500);
+        });
+        
+        function log(msg, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const line = document.createElement('div');
+            line.className = 'log-line' + (type === 'error' ? ' log-error' : type === 'warn' ? ' log-warn' : '');
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.appendChild(line);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        async function connectWallet() {
+            try {
+                if (!ethersLoaded) {
+                    log('❌ Ethers.js not loaded yet. Please wait.', 'error');
+                    return;
+                }
+                
+                if (typeof window.ethereum === 'undefined') {
+                    log('❌ MetaMask not detected!', 'error');
+                    log('💡 Please install MetaMask browser extension from https://metamask.io', 'warn');
+                    alert('MetaMask not detected!\n\nPlease install the MetaMask browser extension:\n1. Go to https://metamask.io\n2. Install for your browser\n3. Refresh this page');
+                    return;
+                }
+                
+                log('Requesting wallet connection...');
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                const address = await signer.getAddress();
+                const network = await provider.getNetwork();
+                
+                log(`✅ Connected: ${address}`);
+                log(`Network: ${network.name} (Chain ID: ${network.chainId})`);
+                
+                if (network.chainId !== POLYGON_CHAIN_ID) {
+                    log('⚠️ Wrong network! Switching to Polygon...', 'warn');
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0x89' }],
+                        });
+                        log('✅ Switched to Polygon');
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            log('Adding Polygon network...', 'warn');
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: '0x89',
+                                    chainName: 'Polygon Mainnet',
+                                    nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+                                    rpcUrls: ['https://polygon-rpc.com/'],
+                                    blockExplorerUrls: ['https://polygonscan.com/']
+                                }]
+                            });
+                        } else {
+                            throw switchError;
+                        }
+                    }
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    signer = provider.getSigner();
+                }
+                
+                contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+                log('✅ Contract initialized with your wallet');
+                
+                await checkStatus();
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkStatus() {
+            try {
+                if (!ethersLoaded) {
+                    log('❌ Ethers.js not loaded yet. Please wait.', 'error');
+                    return;
+                }
+                
+                if (!provider) {
+                    log('Connecting with public RPC (read-only)...');
+                    provider = new ethers.providers.JsonRpcProvider('https://polygon-rpc.com/');
+                    contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
+                }
+                
+                log('Checking contract status...');
+                
+                const [paused, mintPrice, totalSupply, isMintingActive, maxSupply, owner] = await Promise.all([
+                    contract.paused(),
+                    contract.mintPrice(),
+                    contract.totalSupply(),
+                    contract.isMintingActive(),
+                    contract.MAX_SUPPLY(),
+                    contract.owner()
+                ]);
+                
+                const statusHtml = `
+                    <div class="status-item">
+                        <span class="label">Is Paused:</span>
+                        <span class="${paused ? 'error' : 'success'}">${paused ? '❌ YES (THIS IS THE PROBLEM!)' : '✅ No'}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Minting Active:</span>
+                        <span class="${isMintingActive ? 'success' : 'error'}">${isMintingActive ? '✅ Yes' : '❌ No'}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Mint Price:</span>
+                        <span class="value">${ethers.utils.formatEther(mintPrice)} MATIC ${mintPrice.eq(0) ? '(FREE!)' : ''}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Total Supply:</span>
+                        <span class="value">${totalSupply.toString()} / ${maxSupply.toString()}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Owner:</span>
+                        <span class="value">${owner}</span>
+                    </div>
+                `;
+                
+                document.getElementById('statusDisplay').style.display = 'block';
+                document.getElementById('statusContent').innerHTML = statusHtml;
+                
+                log(`✅ Status loaded successfully!`);
+                log(`   Paused: ${paused}`);
+                log(`   Minting Active: ${isMintingActive}`);
+                log(`   Mint Price: ${ethers.utils.formatEther(mintPrice)} MATIC`);
+                log(`   Supply: ${totalSupply}/${maxSupply}`);
+                log(`   Owner: ${owner}`);
+                
+                if (paused) {
+                    log('', 'error');
+                    log('🚨 FOUND THE PROBLEM! 🚨', 'error');
+                    log('The contract IS PAUSED!', 'error');
+                    log('', 'error');
+                    log('TO FIX:', 'warn');
+                    log('1. Connect your wallet (click "Connect Wallet" button)', 'warn');
+                    log('2. Make sure you are the owner', 'warn');
+                    log('3. Click "Unpause" button', 'warn');
+                    log('', 'warn');
+                } else {
+                    log('✅ Contract is NOT paused - ready to mint!', 'success');
+                }
+                
+            } catch (error) {
+                log(`❌ Error checking status: ${error.message}`, 'error');
+                if (error.message.includes('could not detect network')) {
+                    log('💡 Try refreshing the page', 'warn');
+                }
+            }
+        }
+        
+        async function unpauseContract() {
+            try {
+                if (!ethersLoaded) {
+                    log('❌ Ethers.js not loaded yet', 'error');
+                    return;
+                }
+                
+                if (!contract || !signer) {
+                    log('❌ Please connect wallet first', 'error');
+                    log('Click "Connect Wallet" button', 'warn');
+                    return;
+                }
+                
+                log('Sending unpause transaction...');
+                const tx = await contract.unpause();
+                log(`Transaction sent: ${tx.hash}`);
+                log('Waiting for confirmation...');
+                
+                await tx.wait();
+                log('✅ CONTRACT UNPAUSED SUCCESSFULLY!', 'success');
+                log(`View on PolygonScan: https://polygonscan.com/tx/${tx.hash}`);
+                log('', 'success');
+                log('🎉 You can now mint NFTs!', 'success');
+                
+                await checkStatus();
+            } catch (error) {
+                log(`❌ Unpause failed: ${error.message}`, 'error');
+                if (error.message.includes('OwnableUnauthorizedAccount')) {
+                    log('💡 Only the contract owner can unpause', 'warn');
+                    log('Make sure you are connected with the owner wallet', 'warn');
+                }
+            }
+        }
+        
+        async function tryMint() {
+            try {
+                if (!ethersLoaded) {
+                    log('❌ Ethers.js not loaded yet', 'error');
+                    return;
+                }
+                
+                if (!contract || !signer) {
+                    log('❌ Please connect wallet first', 'error');
+                    log('Click "Connect Wallet" button', 'warn');
+                    return;
+                }
+                
+                const customImage = document.getElementById('customImage').value;
+                const customText = document.getElementById('customText').value;
+                const eventName = document.getElementById('eventName').value;
+                const eventDate = document.getElementById('eventDate').value;
+                
+                if (!eventName) {
+                    log('❌ Event name is required!', 'error');
+                    return;
+                }
+                
+                log('Getting mint price...');
+                const mintPrice = await contract.mintPrice();
+                log(`Mint price: ${ethers.utils.formatEther(mintPrice)} MATIC`);
+                
+                log('Sending mint transaction...');
+                const tx = await contract.mint(customImage, customText, eventName, eventDate, {
+                    value: mintPrice
+                });
+                
+                log(`✅ Transaction sent: ${tx.hash}`);
+                log('Waiting for confirmation...');
+                
+                const receipt = await tx.wait();
+                log(``, 'success');
+                log(`🎉 MINT SUCCESSFUL! 🎉`, 'success');
+                log(`Gas used: ${receipt.gasUsed.toString()}`, 'success');
+                log(`View on PolygonScan: https://polygonscan.com/tx/${tx.hash}`, 'success');
+                
+                const mintEvent = receipt.events.find(e => e.event === 'Minted');
+                if (mintEvent) {
+                    log(`Token ID: ${mintEvent.args.tokenId.toString()}`, 'success');
+                }
+                
+                await checkStatus();
+                
+            } catch (error) {
+                log(`❌ Mint failed: ${error.message}`, 'error');
+                
+                if (error.data && error.data.message) {
+                    log(`Reason: ${error.data.message}`, 'error');
+                }
+                
+                if (error.message.includes('paused') || error.message.includes('Pausable')) {
+                    log('💡 Contract is paused! Click "Unpause" if you are the owner', 'warn');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
