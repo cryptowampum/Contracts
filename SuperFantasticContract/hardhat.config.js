@@ -2,7 +2,11 @@ require("@nomicfoundation/hardhat-ethers");
 require("dotenv").config();
 
 module.exports = {
-  solidity: "0.8.17",
+  solidity: {
+    compilers: [
+      { version: "0.8.24" }
+    ]
+  },
   networks: {
     amoy: {
       url: "https://rpc-amoy.polygon.technology/",

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity 0.8.24;
 
 // Use OpenZeppelin for core security features
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /// @title BitBasel Moonshot 2025 - P2P IRL NFT System
 /// @author @cryptowampum and Claude AI
@@ -54,6 +55,9 @@ contract BitBaselMoonshot2025 is ERC721, ERC721Enumerable, Ownable2Step, Reentra
 
     /// @notice Image shown for flagged/inappropriate content
     string private nsfwReplacementImage;
+
+    /// @notice Merkle root for whitelist (autoconnect wallets mint free)
+    bytes32 public merkleRoot;
 
     // ========== STRUCTS ==========
 
@@ -103,6 +107,7 @@ contract BitBaselMoonshot2025 is ERC721, ERC721Enumerable, Ownable2Step, Reentra
     event ERC721Recovered(address indexed token, address indexed to, uint256 tokenId);
     event Paused(address account);
     event Unpaused(address account);
+    event MerkleRootUpdated(bytes32 oldRoot, bytes32 newRoot);
 
     // ========== CONSTRUCTOR ==========
 
@@ -201,17 +206,29 @@ contract BitBaselMoonshot2025 is ERC721, ERC721Enumerable, Ownable2Step, Reentra
 
     // ========== MINTING FUNCTIONS ==========
 
+    /// @notice Check if address is whitelisted via Merkle proof
+    /// @param account Address to check
+    /// @param proof Merkle proof for the address
+    /// @return bool True if address is whitelisted
+    function isWhitelisted(address account, bytes32[] calldata proof) public view returns (bool) {
+        if (merkleRoot == bytes32(0)) return false;
+        bytes32 leaf = keccak256(abi.encodePacked(account));
+        return MerkleProof.verify(proof, merkleRoot, leaf);
+    }
+
     /// @notice Public mint - user mints for themselves with customization
-    /// @dev Follows CEI pattern and includes reentrancy guard
+    /// @dev Whitelisted wallets (autoconnect) mint free, others pay mintPrice
     /// @param customImage IPFS hash of custom photo (can be empty to use base image)
     /// @param customText Personalized message (can be empty for default)
     /// @param eventName Name of the event
     /// @param eventDate Unix timestamp of event
+    /// @param proof Merkle proof for free mint (empty array if paying)
     function mint(
         string memory customImage,
         string memory customText,
         string memory eventName,
-        uint256 eventDate
+        uint256 eventDate,
+        bytes32[] calldata proof
     )
         external
         payable
@@ -220,11 +237,19 @@ contract BitBaselMoonshot2025 is ERC721, ERC721Enumerable, Ownable2Step, Reentra
         validEventDate(eventDate)
         nonReentrant
     {
-        require(msg.value >= mintPrice, "Insufficient payment");
         require(bytes(eventName).length > 0, "Event name required");
 
+        // Check if user is whitelisted for free mint
+        bool isFreeEligible = isWhitelisted(msg.sender, proof);
+
+        // Only require payment if not whitelisted
+        if (!isFreeEligible) {
+            require(msg.value >= mintPrice, "Insufficient payment");
+        }
+
         // Calculate refund amount BEFORE any state changes
-        uint256 refundAmount = msg.value - mintPrice;
+        uint256 requiredPayment = isFreeEligible ? 0 : mintPrice;
+        uint256 refundAmount = msg.value - requiredPayment;
 
         // CHECKS-EFFECTS-INTERACTIONS pattern
         // 1. EFFECTS - Update all state first
@@ -597,6 +622,15 @@ contract BitBaselMoonshot2025 is ERC721, ERC721Enumerable, Ownable2Step, Reentra
         uint256 oldPrice = mintPrice;
         mintPrice = newPrice;
         emit MintPriceUpdated(oldPrice, newPrice);
+    }
+
+    /// @notice Set the Merkle root for whitelist verification
+    /// @dev Only owner can update. Set to bytes32(0) to disable whitelist
+    /// @param newRoot New Merkle root hash
+    function setMerkleRoot(bytes32 newRoot) external onlyOwner {
+        bytes32 oldRoot = merkleRoot;
+        merkleRoot = newRoot;
+        emit MerkleRootUpdated(oldRoot, newRoot);
     }
 
     /// @notice Add or remove a team minter

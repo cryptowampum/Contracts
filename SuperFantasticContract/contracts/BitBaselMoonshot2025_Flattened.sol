@@ -4,7 +4,7 @@
 // Flattened on: December 1, 2025
 // OpenZeppelin Contracts v5.0.0
 
-pragma solidity 0.8.17;
+pragma solidity 0.8.24;
 
 // ============ OpenZeppelin Interfaces ============
 
