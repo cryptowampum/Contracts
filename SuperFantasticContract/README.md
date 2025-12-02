@@ -472,7 +472,9 @@ Ready to create your first IRL NFT? Here's the quickest path:
 
 *Transforming IRL interactions into permanent on-chain memories* 🦄✨
 
-Contract: 0xF993f484225900D2Be4F7253Cfd4Ab14fC9f4621
+##Contract: 0xF993f484225900D2Be4F7253Cfd4Ab14fC9f4621 on Polygon
+
+
 
 https://ipfs.io/ipfs/bafkreiaklsgqpu3j2cgyd4ykzvpod42qfs7nycfuvhqudmwxsmsgia772q - base
 
