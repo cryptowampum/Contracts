@@ -1,0 +1,51 @@
+# BitBasel Moonshot 2025 - Deployment Info
+
+## Contract
+- **Name**: BitBasel Moonshot 2025
+- **Symbol**: BBM25
+- **Solidity**: 0.8.24
+- **License**: MIT
+
+## PRODUCTION DEPLOYMENT (Polygon Mainnet) ✅
+- **Address**: 0xf50f5a297b2694C8f26c595F467dF10f2150edb9 
+- **Network**: Polygon (Chain ID: 137)
+- **Sourcify**: https://repo.sourcify.dev/137/0xf50f5a297b2694C8f26c595F467dF10f2150edb9/
+- **Blockscout**: https://polygon.blockscout.com/address/0xf50f5a297b2694C8f26c595F467dF10f2150edb9?tab=contract
+
+## Constructor Arguments Used
+- `_baseImageURI`: https://bafkreibzh3p2ukjoxdqccfxck5bnjqe6xs6i4rjq6um3ysva5xxqjm5txq.ipfs.dweb.link/
+- `_baseAnimationURI`: https://bafybeicqmbwd2xwt5ftwyahhldqpvxwxbw5nvc75jirklyhra2azpywuai.ipfs.dweb.link/
+- `_nsfwImage`: https://bafybeicltuul2wzk6ivhrvull3ptlpcc5rh6tvgkv6lkyuzs5l4olapjde.ipfs.dweb.link/
+
+## Failed/Invalid Deployments (Library Stubs)
+- 0xc15F18b3B6C0C732CE72fF780fC51D86f87392b6 (Base - wrong contract selected)
+- 0xC53871EcdFCfc9bF5d5B8ab2170119795784b267 (Polygon - wrong contract selected)
+- 0x62d90E5368fA390C251293DAD87FD43F75E7C31B (unknown)
+
+## Contract Features
+- Soulbound NFTs (non-transferable)
+- Team minting (teamMint, batchTeamMint up to 100)
+- Public minting with payment (mintPrice default 0)
+- Content moderation (flag/unflag tokens)
+- On-chain metadata generation (tokenURI)
+- ERC20/ERC721 recovery functions
+- Pausable by owner
+- NO Merkle whitelist (removed from main contract)
+
+## Source Files
+- Main: contracts/BitBaselMoonshot2025.sol (Merkle removed)
+- Flattened: contracts/BitBaselMoonshot2025_Flattened.sol (still has Merkle - needs sync)
+
+## Key Functions
+- mint(customImage, customText, eventName, eventDate) - public mint
+- teamMint(recipient, customImage, customText, eventName, eventDate) - team mint
+- batchTeamMint(recipients[], customImages[], customTexts[], eventName, eventDate) - batch
+- setTeamMinter(address, bool) - manage team minters
+- setModerator(address, bool) - manage moderators
+- flagToken(tokenId, reason) / unflagToken(tokenId) - moderation
+- setMintPrice(newPrice) - update mint price
+- withdraw() - withdraw native tokens
+- pause() / unpause() - emergency controls
+
+## Deployer
+- Address: 0x7049747e615a1c5c22935d5790a664b7e65d9681 (rcastag.eth)
