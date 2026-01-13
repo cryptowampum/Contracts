@@ -1,6 +1,6 @@
 # Unicorn Ecosystem
 
-A token ecosystem for claiming Unicorn subdomains and community membership NFTs on Base.
+A token ecosystem for claiming Unicorn subdomains and community membership NFTs on Base and Arbitrum.
 
 ## Overview
 
@@ -20,45 +20,75 @@ The Unicorn Ecosystem consists of two smart contracts that work together:
 
 ---
 
-## Deployed Contracts (Base Mainnet)
+## Deployed Contracts
+
+### Base Mainnet
 
 | Contract | Address | Verified |
 |----------|---------|----------|
 | **UnicornCredit (UCRED)** | [`0x605b108a8D5cC149AB977C3ec37fDDFe3AE9f4B4`](https://basescan.org/address/0x605b108a8D5cC149AB977C3ec37fDDFe3AE9f4B4#code) | Yes |
 | **UnicornEcosystem** | [`0x440A2e63468384Ff72a84d96B03619cBe580d352`](https://basescan.org/address/0x440A2e63468384Ff72a84d96B03619cBe580d352#code) | Yes |
 
-### Deployment Parameters
+### Arbitrum Mainnet
 
-#### UnicornCredit
+| Contract | Address | Verified |
+|----------|---------|----------|
+| **UnicornCredit (UCRED)** | [`0xC6Ab7d37C6554c5De9D8c9345A3e5Bd4344AAdE6`](https://arbiscan.io/address/0xC6Ab7d37C6554c5De9D8c9345A3e5Bd4344AAdE6#code) | Yes |
+| **UnicornEcosystem** | [`0x66d34B2DA878A33D410ceC50598c5004E79256e2`](https://arbiscan.io/address/0x66d34B2DA878A33D410ceC50598c5004E79256e2#code) | Yes |
+
+### Quick Reference
+
+| Chain | UnicornCredit | UnicornEcosystem |
+|-------|---------------|------------------|
+| **Base** | `0x605b108a8D5cC149AB977C3ec37fDDFe3AE9f4B4` | `0x440A2e63468384Ff72a84d96B03619cBe580d352` |
+| **Arbitrum** | `0xC6Ab7d37C6554c5De9D8c9345A3e5Bd4344AAdE6` | `0x66d34B2DA878A33D410ceC50598c5004E79256e2` |
+
+---
+
+## Deployment Parameters
+
+### UnicornCredit
 - **Name:** UnicornCredit
 - **Symbol:** UCRED
 - **Decimals:** 18
 - **Mint Price:** 0.01 ETH (for public minting)
 - **Constructor Arguments:** None
 
-#### UnicornEcosystem
+### UnicornEcosystem
 - **Name:** Unicorn Ecosystem
 - **Symbol:** UNICORN
 - **Constructor Arguments:**
-  - `_unicornCredit`: `0x605b108a8D5cC149AB977C3ec37fDDFe3AE9f4B4`
+  - `_unicornCredit`: (UnicornCredit address for that chain)
   - `_baseSubdomainImageURI`: `ipfs://QmYourSubdomainImageHash` (placeholder at deploy)
   - `_baseCommunityImageURI`: `ipfs://QmYourCommunityImageHash` (placeholder at deploy)
 
-### Post-Deployment Configuration
+---
+
+## Configuration (Both Chains)
+
+### Image URIs
 
 | Setting | Value |
 |---------|-------|
 | **Subdomain Image URI** | `ipfs://bafkreidtgzztbjue3yamvkd7rdh2hxlsbchd3bclc53s37nvgys2f6s4y4` |
 | **Community Image URI** | `ipfs://bafkreid4j2yawdwm4ogi63rbzxjmnh4cdx2ljyhuip36gdgmhhl7cjdxiu` |
-| **ThirdWeb Server Wallet** | `0x03D2c93762bB7CdC7dC07006c94DFa01368e0f8c` |
 | **Domain Suffix** | `.unicorn` |
 
-### Initial Token Distribution
+### Team Minters
+
+Both wallets are authorized team minters on **both contracts** on **both chains**:
+
+| Wallet | Address | Role |
+|--------|---------|------|
+| **ThirdWeb Server** | `0x03D2c93762bB7CdC7dC07006c94DFa01368e0f8c` | Server wallet for airdrops |
+| **Admin** | `0x7049747E615a1C5C22935D5790a664B7E65D9681` | Additional team minter |
+
+### Initial Token Distribution (Per Chain)
 
 | Wallet | UCRED Balance |
 |--------|---------------|
-| Server Wallet (`0x03D2...0f8c`) | 300 UCRED |
-| `0x7049747E615a1C5C22935D5790a664B7E65D9681` | 1 UCRED |
+| ThirdWeb Server (`0x03D2...0f8c`) | 300 UCRED |
+| Admin (`0x7049...9681`) | 1 UCRED |
 | **Total Supply** | 301 UCRED |
 
 ---
@@ -222,6 +252,7 @@ Create `.env` file:
 ```
 PRIVATE_KEY=your_private_key_here
 BASESCAN_API_KEY=your_api_key
+ARBISCAN_API_KEY=your_api_key
 ```
 
 ### Compile
@@ -239,13 +270,21 @@ npx hardhat test
 # Base Mainnet
 npx hardhat run scripts/deploy.js --network base
 
-# Base Sepolia (testnet)
+# Arbitrum Mainnet
+npx hardhat run scripts/deploy.js --network arbitrum
+
+# Testnets
 npx hardhat run scripts/deploy.js --network baseSepolia
+npx hardhat run scripts/deploy.js --network arbitrumSepolia
 ```
 
 ### Verify
 ```bash
+# Base
 npx hardhat verify --network base <CONTRACT_ADDRESS> [constructor args...]
+
+# Arbitrum
+npx hardhat verify --network arbitrum <CONTRACT_ADDRESS> [constructor args...]
 ```
 
 ---
@@ -261,10 +300,14 @@ UnicornEcosystem/
 │       └── IUnicornCredit.sol      # Interface for cross-contract calls
 ├── scripts/
 │   ├── deploy.js                   # Main deployment script
-│   ├── updateImageURIs.js          # Update NFT images
+│   ├── updateImageURIs.js          # Update NFT images (Base)
 │   ├── addTeamMinter.js            # Add team minter to both contracts
 │   ├── mintTokens.js               # Mint UCRED tokens
-│   └── checkBalances.js            # Check token balances
+│   ├── checkBalances.js            # Check token balances
+│   ├── checkMinters.js             # Check team minter status
+│   └── arbitrum/
+│       ├── setup.js                # Full Arbitrum setup script
+│       └── checkBalances.js        # Check Arbitrum balances
 ├── test/
 │   ├── UnicornCredit.test.js       # 27 tests
 │   └── UnicornEcosystem.test.js    # 42 tests
@@ -344,3 +387,4 @@ MIT
 - [OpenZeppelin](https://openzeppelin.com/) - Secure smart contract libraries
 - [Hardhat](https://hardhat.org/) - Development environment
 - [Base](https://base.org/) - L2 blockchain
+- [Arbitrum](https://arbitrum.io/) - L2 blockchain
