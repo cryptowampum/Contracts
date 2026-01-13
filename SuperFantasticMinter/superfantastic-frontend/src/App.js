@@ -297,8 +297,9 @@ export default function TeamMinter() {
       return;
     }
     
-    // Try ENS resolution
-    if (input.endsWith('.eth')) {
+    // Try ENS resolution for any domain name
+    // ENS supports .eth, .com, .ac, and many other TLDs
+    if (input.includes('.')) {
       if (!provider) {
         showAlert('Connect wallet first to resolve ENS', 'warning');
         return;
@@ -313,12 +314,12 @@ export default function TeamMinter() {
           setResolvedAddress(resolved);
           showAlert(`✅ Resolved ${input} to ${resolved.slice(0, 6)}...${resolved.slice(-4)}`, 'success');
         } else {
-          showAlert('ENS name not found', 'error');
+          showAlert(`ENS name "${input}" not found or not configured`, 'error');
           setResolvedAddress('');
         }
       } catch (error) {
         console.error('ENS resolution error:', error);
-        showAlert('ENS resolution failed', 'error');
+        showAlert(`Could not resolve "${input}"`, 'error');
         setResolvedAddress('');
       }
       return;
@@ -549,12 +550,13 @@ export default function TeamMinter() {
                 type="text"
                 value={recipientAddress}
                 onChange={(e) => setRecipientAddress(e.target.value)}
-                placeholder="0x... or name.eth"
+                placeholder="0x... or name.eth or ethdenver.com"
                 className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:outline-none"
               />
               {resolvedAddress && (
                 <p className="text-xs text-green-600 mt-1">✅ Resolved to: {resolvedAddress}</p>
               )}
+              <p className="text-xs text-gray-500 mt-1">Supports all ENS domains: .eth, .com, .ac, etc.</p>
             </div>
 
             {/* Custom Text */}
