@@ -1,9 +1,9 @@
 const { expect } = require("chai");
-const { ethers } = require("hardhat");
+const { ethers, upgrades } = require("hardhat");
 
-describe("UnicornEcosystem", function () {
+describe("UnicornEcosystemV2", function () {
   let UnicornCredit;
-  let UnicornEcosystem;
+  let UnicornEcosystemV2;
   let unicornCredit;
   let unicornEcosystem;
   let owner;
@@ -26,12 +26,12 @@ describe("UnicornEcosystem", function () {
     unicornCredit = await UnicornCredit.deploy();
     await unicornCredit.waitForDeployment();
 
-    // Deploy UnicornEcosystem
-    UnicornEcosystem = await ethers.getContractFactory("UnicornEcosystem");
-    unicornEcosystem = await UnicornEcosystem.deploy(
-      await unicornCredit.getAddress(),
-      BASE_SUBDOMAIN_IMAGE,
-      BASE_COMMUNITY_IMAGE
+    // Deploy UnicornEcosystemV2 (upgradeable)
+    UnicornEcosystemV2 = await ethers.getContractFactory("UnicornEcosystemV2");
+    unicornEcosystem = await upgrades.deployProxy(
+      UnicornEcosystemV2,
+      [await unicornCredit.getAddress(), BASE_SUBDOMAIN_IMAGE, BASE_COMMUNITY_IMAGE],
+      { initializer: "initialize", kind: "uups" }
     );
     await unicornEcosystem.waitForDeployment();
 
@@ -63,6 +63,10 @@ describe("UnicornEcosystem", function () {
 
     it("Should not be paused initially", async function () {
       expect(await unicornEcosystem.paused()).to.be.false;
+    });
+
+    it("Should return correct version", async function () {
+      expect(await unicornEcosystem.version()).to.equal("2.0.0");
     });
   });
 
@@ -112,10 +116,33 @@ describe("UnicornEcosystem", function () {
     });
 
     it("Should reject names that are too long", async function () {
-      const longName = "a".repeat(33);
+      const longName = "a".repeat(129); // MAX_NAME_LENGTH is 128
       await expect(
         unicornEcosystem.connect(user1).claimSubdomain(longName)
       ).to.be.revertedWith("Name too long");
+    });
+
+    it("Should accept names with dots in middle", async function () {
+      await unicornEcosystem.connect(user1).claimSubdomain("alice.community.unicorn");
+      expect(await unicornEcosystem.resolveSubdomain("alice.community.unicorn")).to.equal(user1.address);
+    });
+
+    it("Should reject names starting with dot", async function () {
+      await expect(
+        unicornEcosystem.connect(user1).claimSubdomain(".alice")
+      ).to.be.revertedWith("Invalid characters in name");
+    });
+
+    it("Should reject names ending with dot", async function () {
+      await expect(
+        unicornEcosystem.connect(user1).claimSubdomain("alice.")
+      ).to.be.revertedWith("Invalid characters in name");
+    });
+
+    it("Should accept long domain-like names", async function () {
+      const longDomain = "russel.community.unicornfortress.com";
+      await unicornEcosystem.connect(user1).claimSubdomain(longDomain);
+      expect(await unicornEcosystem.resolveSubdomain(longDomain)).to.equal(user1.address);
     });
   });
 
@@ -210,6 +237,124 @@ describe("UnicornEcosystem", function () {
       await expect(
         unicornEcosystem.connect(user1).teamClaimFor(user2.address, "teamuser")
       ).to.be.revertedWith("Not authorized to team claim");
+    });
+  });
+
+  describe("Team Airdrop", function () {
+    beforeEach(async function () {
+      await unicornEcosystem.setTeamMinter(teamMinter.address, true);
+    });
+
+    it("Should allow team minter to airdrop without UCRED", async function () {
+      // user2 has no UCRED
+      expect(await unicornCredit.balanceOf(user2.address)).to.equal(0);
+
+      await unicornEcosystem.connect(teamMinter).teamAirdrop(user2.address, "airdropuser");
+
+      expect(await unicornEcosystem.ownerOf(1)).to.equal(user2.address);
+      expect(await unicornEcosystem.resolveSubdomain("airdropuser")).to.equal(user2.address);
+    });
+
+    it("Should emit TeamAirdropExecuted event", async function () {
+      await expect(
+        unicornEcosystem.connect(teamMinter).teamAirdrop(user2.address, "airdropuser")
+      )
+        .to.emit(unicornEcosystem, "TeamAirdropExecuted")
+        .withArgs(teamMinter.address, user2.address, 1n, "airdropuser");
+    });
+
+    it("Should allow owner to airdrop", async function () {
+      await unicornEcosystem.connect(owner).teamAirdrop(user2.address, "ownerairdrop");
+      expect(await unicornEcosystem.ownerOf(1)).to.equal(user2.address);
+    });
+
+    it("Should reject airdrop from unauthorized address", async function () {
+      await expect(
+        unicornEcosystem.connect(user1).teamAirdrop(user2.address, "unauthorized")
+      ).to.be.revertedWith("Not authorized");
+    });
+
+    it("Should batch airdrop multiple users", async function () {
+      const recipients = [user1.address, user2.address];
+      const names = ["batch1", "batch2"];
+
+      await unicornEcosystem.connect(teamMinter).teamAirdropBatch(recipients, names);
+
+      expect(await unicornEcosystem.ownerOf(1)).to.equal(user1.address);
+      expect(await unicornEcosystem.ownerOf(2)).to.equal(user2.address);
+      expect(await unicornEcosystem.resolveSubdomain("batch1")).to.equal(user1.address);
+      expect(await unicornEcosystem.resolveSubdomain("batch2")).to.equal(user2.address);
+    });
+
+    it("Should reject batch with mismatched arrays", async function () {
+      const recipients = [user1.address, user2.address];
+      const names = ["onlyone"];
+
+      await expect(
+        unicornEcosystem.connect(teamMinter).teamAirdropBatch(recipients, names)
+      ).to.be.revertedWith("Arrays length mismatch");
+    });
+  });
+
+  describe("Clawback", function () {
+    beforeEach(async function () {
+      await unicornEcosystem.setTeamMinter(teamMinter.address, true);
+      // Airdrop to user2
+      await unicornEcosystem.connect(teamMinter).teamAirdrop(user2.address, "clawbacktest");
+    });
+
+    it("Should allow team minter to clawback NFT", async function () {
+      expect(await unicornEcosystem.ownerOf(1)).to.equal(user2.address);
+
+      await unicornEcosystem.connect(teamMinter).clawback(1);
+
+      await expect(unicornEcosystem.ownerOf(1)).to.be.reverted;
+    });
+
+    it("Should clear subdomain data on clawback", async function () {
+      expect(await unicornEcosystem.resolveSubdomain("clawbacktest")).to.equal(user2.address);
+
+      await unicornEcosystem.connect(teamMinter).clawback(1);
+
+      expect(await unicornEcosystem.resolveSubdomain("clawbacktest")).to.equal(ethers.ZeroAddress);
+    });
+
+    it("Should emit NFTClawedBack event", async function () {
+      await expect(unicornEcosystem.connect(teamMinter).clawback(1))
+        .to.emit(unicornEcosystem, "NFTClawedBack")
+        .withArgs(teamMinter.address, user2.address, 1n);
+    });
+
+    it("Should allow owner to clawback", async function () {
+      await unicornEcosystem.connect(owner).clawback(1);
+      await expect(unicornEcosystem.ownerOf(1)).to.be.reverted;
+    });
+
+    it("Should reject clawback from unauthorized address", async function () {
+      await expect(
+        unicornEcosystem.connect(user1).clawback(1)
+      ).to.be.revertedWith("Not authorized");
+    });
+
+    it("Should batch clawback multiple tokens", async function () {
+      // Airdrop another
+      await unicornEcosystem.connect(teamMinter).teamAirdrop(user1.address, "clawback2");
+
+      await unicornEcosystem.connect(teamMinter).clawbackBatch([1, 2]);
+
+      await expect(unicornEcosystem.ownerOf(1)).to.be.reverted;
+      await expect(unicornEcosystem.ownerOf(2)).to.be.reverted;
+    });
+
+    it("Should allow name to be reclaimed after clawback", async function () {
+      await unicornEcosystem.connect(teamMinter).clawback(1);
+
+      // Name should be available again
+      expect(await unicornEcosystem.isNameAvailable("clawbacktest")).to.be.true;
+
+      // Can airdrop the same name again
+      await unicornEcosystem.connect(teamMinter).teamAirdrop(user1.address, "clawbacktest");
+      expect(await unicornEcosystem.resolveSubdomain("clawbacktest")).to.equal(user1.address);
     });
   });
 
@@ -349,6 +494,22 @@ describe("UnicornEcosystem", function () {
       expect(await unicornEcosystem.totalSubdomainsClaimed()).to.equal(0);
       await unicornEcosystem.connect(user1).claimSubdomain("alice");
       expect(await unicornEcosystem.totalSubdomainsClaimed()).to.equal(1);
+    });
+  });
+
+  describe("Upgradeability", function () {
+    it("Should be upgradeable by owner", async function () {
+      // Deploy a new implementation (same contract for simplicity)
+      const UnicornEcosystemV2New = await ethers.getContractFactory("UnicornEcosystemV2");
+
+      // Upgrade
+      const upgraded = await upgrades.upgradeProxy(
+        await unicornEcosystem.getAddress(),
+        UnicornEcosystemV2New
+      );
+
+      // Should retain state
+      expect(await upgraded.name()).to.equal("Unicorn Ecosystem");
     });
   });
 });

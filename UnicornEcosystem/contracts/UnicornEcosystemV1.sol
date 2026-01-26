@@ -26,7 +26,7 @@ contract UnicornEcosystem is ERC721, ERC721Enumerable, Ownable2Step, ReentrancyG
     uint256 public constant COMMUNITY_TOKEN_OFFSET = 1_000_000_000;
 
     /// @notice Maximum subdomain name length
-    uint256 public constant MAX_NAME_LENGTH = 32;
+    uint256 public constant MAX_NAME_LENGTH = 128;
 
     /// @notice Minimum subdomain name length
     uint256 public constant MIN_NAME_LENGTH = 1;
@@ -147,7 +147,7 @@ contract UnicornEcosystem is ERC721, ERC721Enumerable, Ownable2Step, ReentrancyG
     // ========== NAME VALIDATION ==========
 
     /// @notice Validates a subdomain name
-    /// @dev Allows a-z, 0-9, and hyphens (not at start/end)
+    /// @dev Allows a-z, 0-9, hyphens, and dots (hyphens/dots not at start/end)
     /// @param name Name to validate
     /// @return bool True if valid
     function _isValidName(string memory name) internal pure returns (bool) {
@@ -165,9 +165,10 @@ contract UnicornEcosystem is ERC721, ERC721Enumerable, Ownable2Step, ReentrancyG
             bool isUppercase = (char >= 0x41 && char <= 0x5A);
             bool isDigit = (char >= 0x30 && char <= 0x39);
             bool isHyphen = (char == 0x2D);
+            bool isDot = (char == 0x2E);
 
-            if (isHyphen) {
-                // Hyphen not allowed at start or end
+            if (isHyphen || isDot) {
+                // Hyphen and dot not allowed at start or end
                 if (i == 0 || i == b.length - 1) {
                     return false;
                 }
